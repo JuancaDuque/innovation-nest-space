@@ -2,15 +2,16 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { User, Session } from "@supabase/supabase-js";
-import { Plus, LogOut, FolderOpen, Archive, Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import { Plus, LogOut, FolderOpen, Loader2, GitCompare, Sparkles } from "lucide-react";
+import ProjectCard from "@/components/dashboard/ProjectCard";
+import RouteComparator from "@/components/dashboard/RouteComparator";
 
 interface Project {
   id: string;
@@ -31,6 +32,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [creatingProject, setCreatingProject] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [comparatorProjects, setComparatorProjects] = useState<Project[]>([]);
+  const [showComparator, setShowComparator] = useState(false);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -148,6 +151,31 @@ const Dashboard = () => {
     navigate("/auth");
   };
 
+  const handleDragStart = (e: React.DragEvent, projectId: string) => {
+    e.dataTransfer.setData("projectId", projectId);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const projectId = e.dataTransfer.getData("projectId");
+    const project = projects.find(p => p.id === projectId);
+    
+    if (project && !comparatorProjects.find(p => p.id === projectId)) {
+      setComparatorProjects(prev => [...prev, project]);
+      if (!showComparator) {
+        setShowComparator(true);
+      }
+    }
+  };
+
+  const handleRemoveFromComparator = (projectId: string) => {
+    setComparatorProjects(prev => prev.filter(p => p.id !== projectId));
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -160,23 +188,47 @@ const Dashboard = () => {
   const archivedProjects = projects.filter(p => p.status === "archived");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
-      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-primary">Routify Dashboard</h1>
-          <Button variant="outline" onClick={handleSignOut}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
+    <div className="min-h-screen bg-background">
+      <header className="border-b bg-card/80 backdrop-blur-md sticky top-0 z-40">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                <Sparkles className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  Routify
+                </h1>
+                <p className="text-xs text-muted-foreground">Infrastructure Routing Suite</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {comparatorProjects.length > 0 && (
+                <Button 
+                  variant="outline"
+                  onClick={() => setShowComparator(true)}
+                  className="gap-2"
+                >
+                  <GitCompare className="h-4 w-4" />
+                  Compare ({comparatorProjects.length})
+                </Button>
+              )}
+              <Button variant="outline" onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </Button>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-6 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h2 className="text-3xl font-bold">My Projects</h2>
-            <p className="text-muted-foreground mt-1">
-              Manage your infrastructure routing projects
+            <p className="text-muted-foreground mt-2">
+              Design, analyze, and optimize infrastructure routing
             </p>
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -232,51 +284,44 @@ const Dashboard = () => {
         </div>
 
         {activeProjects.length === 0 && archivedProjects.length === 0 ? (
-          <Card className="text-center py-12">
+          <Card className="text-center py-16" style={{ boxShadow: "var(--shadow-card)" }}>
             <CardContent>
-              <FolderOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No projects yet</h3>
-              <p className="text-muted-foreground mb-4">
-                Create your first project to get started
-              </p>
+              <div className="mb-6">
+                <div className="mx-auto h-16 w-16 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-4">
+                  <FolderOpen className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">No projects yet</h3>
+                <p className="text-muted-foreground">
+                  Create your first infrastructure routing project to get started
+                </p>
+              </div>
             </CardContent>
           </Card>
         ) : (
           <>
             {activeProjects.length > 0 && (
-              <div className="mb-8">
-                <h3 className="text-xl font-semibold mb-4">Active Projects</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="mb-12">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-semibold">Active Projects</h3>
+                  <div 
+                    className="px-4 py-2 rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 text-sm text-muted-foreground"
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                  >
+                    <GitCompare className="inline h-4 w-4 mr-2" />
+                    Drag cards here to compare
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {activeProjects.map((project) => (
-                    <Card key={project.id} className="hover:shadow-lg transition-shadow">
-                      <CardHeader>
-                        <CardTitle className="line-clamp-1">{project.title}</CardTitle>
-                        <CardDescription className="line-clamp-2">
-                          {project.description || "No description"}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2 text-sm text-muted-foreground mb-4">
-                          <p>Step: {project.current_step} of 6</p>
-                          <p>Created: {format(new Date(project.created_at), "MMM d, yyyy")}</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => navigate(`/project/${project.id}`)}
-                            className="flex-1"
-                          >
-                            <FolderOpen className="mr-2 h-4 w-4" />
-                            Open
-                          </Button>
-                          <Button
-                            onClick={() => handleArchiveProject(project.id)}
-                            variant="outline"
-                          >
-                            <Archive className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <ProjectCard
+                      key={project.id}
+                      project={project}
+                      onOpen={(id) => navigate(`/project/${id}`)}
+                      onArchive={handleArchiveProject}
+                      isDraggable={true}
+                      onDragStart={handleDragStart}
+                    />
                   ))}
                 </div>
               </div>
@@ -284,31 +329,15 @@ const Dashboard = () => {
 
             {archivedProjects.length > 0 && (
               <div>
-                <h3 className="text-xl font-semibold mb-4">Archived Projects</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <h3 className="text-xl font-semibold mb-6">Archived Projects</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {archivedProjects.map((project) => (
-                    <Card key={project.id} className="opacity-60">
-                      <CardHeader>
-                        <CardTitle className="line-clamp-1">{project.title}</CardTitle>
-                        <CardDescription className="line-clamp-2">
-                          {project.description || "No description"}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2 text-sm text-muted-foreground mb-4">
-                          <p>Step: {project.current_step} of 6</p>
-                          <p>Created: {format(new Date(project.created_at), "MMM d, yyyy")}</p>
-                        </div>
-                        <Button
-                          onClick={() => navigate(`/project/${project.id}`)}
-                          variant="outline"
-                          className="w-full"
-                        >
-                          <FolderOpen className="mr-2 h-4 w-4" />
-                          View
-                        </Button>
-                      </CardContent>
-                    </Card>
+                    <ProjectCard
+                      key={project.id}
+                      project={project}
+                      onOpen={(id) => navigate(`/project/${id}`)}
+                      isArchived={true}
+                    />
                   ))}
                 </div>
               </div>
@@ -316,6 +345,14 @@ const Dashboard = () => {
           </>
         )}
       </main>
+
+      {showComparator && (
+        <RouteComparator
+          projects={comparatorProjects}
+          onRemoveProject={handleRemoveFromComparator}
+          onClose={() => setShowComparator(false)}
+        />
+      )}
     </div>
   );
 };
