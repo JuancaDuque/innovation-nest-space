@@ -30,8 +30,8 @@ const products: Product[] = [
     available: false,
   },
   {
-    id: "alternator",
-    name: "Alternator",
+    id: "variator",
+    name: "Variator",
     description: "Generates alternative paths to a given route.",
     icon: Shuffle,
     path: "#",
