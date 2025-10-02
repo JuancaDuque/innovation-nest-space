@@ -51,7 +51,10 @@ const ProjectCard = ({
 
   useEffect(() => {
     const loadRoutePreview = async () => {
-      if (project.current_step < 4 || !mapRef.current) return;
+      if (project.current_step < 4) {
+        setHasRoute(false);
+        return;
+      }
 
       try {
         // Check if route exists for this project
@@ -61,58 +64,77 @@ const ProjectCard = ({
           .eq("project_id", project.id)
           .single();
 
-        if (error || !routeData) {
+        if (error || !routeData || !routeData.geojson) {
+          console.log("No route data found for project:", project.id);
           setHasRoute(false);
           return;
         }
 
         setHasRoute(true);
 
-        // Create miniature map
-        const routeSource = new VectorSource({
-          features: new GeoJSON().readFeatures(routeData.geojson, {
-            featureProjection: "EPSG:3857",
-          }),
-        });
+        // Wait for next tick to ensure DOM is ready
+        setTimeout(() => {
+          if (!mapRef.current) return;
 
-        const routeLayer = new VectorLayer({
-          source: routeSource,
-          style: new Style({
-            stroke: new Stroke({
-              color: "hsl(220 70% 50%)",
-              width: 3,
-            }),
-            image: new Circle({
-              radius: 5,
-              fill: new Fill({ color: "hsl(220 70% 50%)" }),
-            }),
-          }),
-        });
+          // Clean up existing map if any
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.setTarget(undefined);
+            mapInstanceRef.current = null;
+          }
 
-        const map = new Map({
-          target: mapRef.current,
-          layers: [
-            new TileLayer({
-              source: new OSM(),
-            }),
-            routeLayer,
-          ],
-          view: new View({
-            center: [0, 0],
-            zoom: 2,
-          }),
-          controls: [],
-          interactions: [],
-        });
+          try {
+            // Create miniature map
+            const routeSource = new VectorSource({
+              features: new GeoJSON().readFeatures(routeData.geojson, {
+                featureProjection: "EPSG:3857",
+              }),
+            });
 
-        // Fit to route extent
-        const extent = routeSource.getExtent();
-        map.getView().fit(extent, {
-          padding: [20, 20, 20, 20],
-          duration: 0,
-        });
+            const routeLayer = new VectorLayer({
+              source: routeSource,
+              style: new Style({
+                stroke: new Stroke({
+                  color: "hsl(220 70% 50%)",
+                  width: 3,
+                }),
+                image: new Circle({
+                  radius: 5,
+                  fill: new Fill({ color: "hsl(220 70% 50%)" }),
+                }),
+              }),
+            });
 
-        mapInstanceRef.current = map;
+            const map = new Map({
+              target: mapRef.current,
+              layers: [
+                new TileLayer({
+                  source: new OSM(),
+                }),
+                routeLayer,
+              ],
+              view: new View({
+                center: [0, 0],
+                zoom: 2,
+              }),
+              controls: [],
+              interactions: [],
+            });
+
+            // Fit to route extent
+            const extent = routeSource.getExtent();
+            if (extent && extent.every((val) => isFinite(val))) {
+              map.getView().fit(extent, {
+                padding: [20, 20, 20, 20],
+                duration: 0,
+              });
+            }
+
+            mapInstanceRef.current = map;
+          } catch (mapError) {
+            console.error("Error creating map:", mapError);
+            setHasRoute(false);
+          }
+        }, 100);
       } catch (error) {
         console.error("Error loading route preview:", error);
         setHasRoute(false);
