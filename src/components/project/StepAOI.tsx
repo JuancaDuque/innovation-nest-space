@@ -6,14 +6,14 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Save } from "lucide-react";
 import Map from "ol/Map";
 import View from "ol/View";
-import TileLayer from "ol/layer/Tile";
-import OSM from "ol/source/OSM";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import Draw from "ol/interaction/Draw";
 import { fromLonLat, toLonLat } from "ol/proj";
 import { Style, Stroke, Fill } from "ol/style";
 import GeoJSON from "ol/format/GeoJSON";
+import BaseMapSelector, { BaseMapType } from "@/components/map/BaseMapSelector";
+import { createBaseLayer } from "@/utils/mapLayers";
 import "ol/ol.css";
 
 interface StepAOIProps {
@@ -25,13 +25,20 @@ const StepAOI = ({ projectId, onComplete }: StepAOIProps) => {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [hasAOI, setHasAOI] = useState(false);
+  const [baseMapType, setBaseMapType] = useState<BaseMapType>("osm");
+  const [baseMapOpacity, setBaseMapOpacity] = useState(1);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
+  const baseLayerRef = useRef<any>(null);
   const vectorSourceRef = useRef<VectorSource | null>(null);
   const drawInteractionRef = useRef<Draw | null>(null);
 
   useEffect(() => {
     if (!mapRef.current) return;
+
+    // Create base layer
+    const baseLayer = createBaseLayer(baseMapType, baseMapOpacity);
+    baseLayerRef.current = baseLayer;
 
     // Create vector source for AOI
     const vectorSource = new VectorSource();
@@ -53,12 +60,7 @@ const StepAOI = ({ projectId, onComplete }: StepAOIProps) => {
     // Initialize map
     const map = new Map({
       target: mapRef.current,
-      layers: [
-        new TileLayer({
-          source: new OSM(),
-        }),
-        vectorLayer,
-      ],
+      layers: [baseLayer, vectorLayer],
       view: new View({
         center: fromLonLat([-98.5795, 39.8283]), // Center of USA
         zoom: 4,
@@ -74,6 +76,15 @@ const StepAOI = ({ projectId, onComplete }: StepAOIProps) => {
       map.setTarget(undefined);
     };
   }, []);
+
+  useEffect(() => {
+    // Update base layer when type or opacity changes
+    if (mapInstanceRef.current && baseLayerRef.current) {
+      const newBaseLayer = createBaseLayer(baseMapType, baseMapOpacity);
+      mapInstanceRef.current.getLayers().setAt(0, newBaseLayer);
+      baseLayerRef.current = newBaseLayer;
+    }
+  }, [baseMapType, baseMapOpacity]);
 
   const loadExistingAOI = async () => {
     try {
@@ -223,6 +234,13 @@ const StepAOI = ({ projectId, onComplete }: StepAOIProps) => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <BaseMapSelector
+          value={baseMapType}
+          onChange={setBaseMapType}
+          opacity={baseMapOpacity}
+          onOpacityChange={setBaseMapOpacity}
+        />
+
         <div
           ref={mapRef}
           className="w-full h-[500px] rounded-lg border map-container"

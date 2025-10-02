@@ -6,8 +6,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Zap } from "lucide-react";
 import Map from "ol/Map";
 import View from "ol/View";
-import TileLayer from "ol/layer/Tile";
-import OSM from "ol/source/OSM";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import { fromLonLat } from "ol/proj";
@@ -15,6 +13,8 @@ import { Style, Stroke, Fill, Circle } from "ol/style";
 import GeoJSON from "ol/format/GeoJSON";
 import { LineString } from "ol/geom";
 import Feature from "ol/Feature";
+import BaseMapSelector, { BaseMapType } from "@/components/map/BaseMapSelector";
+import { createBaseLayer } from "@/utils/mapLayers";
 import "ol/ol.css";
 
 interface StepRouteProps {
@@ -26,14 +26,21 @@ const StepRoute = ({ projectId, onComplete }: StepRouteProps) => {
   const { toast } = useToast();
   const [generating, setGenerating] = useState(false);
   const [hasRoute, setHasRoute] = useState(false);
+  const [baseMapType, setBaseMapType] = useState<BaseMapType>("osm");
+  const [baseMapOpacity, setBaseMapOpacity] = useState(1);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
+  const baseLayerRef = useRef<any>(null);
   const aoiSourceRef = useRef<VectorSource | null>(null);
   const pointsSourceRef = useRef<VectorSource | null>(null);
   const routeSourceRef = useRef<VectorSource | null>(null);
 
   useEffect(() => {
     if (!mapRef.current) return;
+
+    // Create base layer
+    const baseLayer = createBaseLayer(baseMapType, baseMapOpacity);
+    baseLayerRef.current = baseLayer;
 
     // AOI layer
     const aoiSource = new VectorSource();
@@ -50,9 +57,7 @@ const StepRoute = ({ projectId, onComplete }: StepRouteProps) => {
     const map = new Map({
       target: mapRef.current,
       layers: [
-        new TileLayer({
-          source: new OSM(),
-        }),
+        baseLayer,
         new VectorLayer({
           source: aoiSource,
           style: new Style({
@@ -98,6 +103,15 @@ const StepRoute = ({ projectId, onComplete }: StepRouteProps) => {
       map.setTarget(undefined);
     };
   }, []);
+
+  useEffect(() => {
+    // Update base layer when type or opacity changes
+    if (mapInstanceRef.current && baseLayerRef.current) {
+      const newBaseLayer = createBaseLayer(baseMapType, baseMapOpacity);
+      mapInstanceRef.current.getLayers().setAt(0, newBaseLayer);
+      baseLayerRef.current = newBaseLayer;
+    }
+  }, [baseMapType, baseMapOpacity]);
 
   const loadData = async () => {
     try {
@@ -276,6 +290,13 @@ const StepRoute = ({ projectId, onComplete }: StepRouteProps) => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <BaseMapSelector
+          value={baseMapType}
+          onChange={setBaseMapType}
+          opacity={baseMapOpacity}
+          onOpacityChange={setBaseMapOpacity}
+        />
+
         <div
           ref={mapRef}
           className="w-full h-[500px] rounded-lg border map-container"
