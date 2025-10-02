@@ -24,7 +24,7 @@ const Auth = () => {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        navigate("/dashboard");
+        navigate("/products");
       }
     });
 
@@ -34,7 +34,7 @@ const Auth = () => {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        navigate("/dashboard");
+        navigate("/products");
       }
     });
 
@@ -56,7 +56,7 @@ const Auth = () => {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}/products`,
           data: {
             first_name: firstName,
             last_name: lastName,
