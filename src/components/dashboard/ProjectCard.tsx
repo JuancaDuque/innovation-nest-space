@@ -153,9 +153,9 @@ const ProjectCard = ({
 
   return (
     <Card 
-      className={`group relative overflow-hidden transition-all duration-300 hover:shadow-[var(--shadow-card-hover)] ${
+      className={`group relative overflow-hidden transition-all duration-300 hover:shadow-[var(--shadow-card-hover)] active:scale-95 ${
         isArchived ? "opacity-70" : ""
-      } ${isDraggable ? "cursor-move" : ""}`}
+      } ${isDraggable ? "cursor-move hover:shadow-primary/20" : ""}`}
       style={{ boxShadow: "var(--shadow-card)" }}
       draggable={isDraggable}
       onDragStart={(e) => onDragStart?.(e, project.id)}

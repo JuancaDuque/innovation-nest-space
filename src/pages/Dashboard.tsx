@@ -34,6 +34,7 @@ const Dashboard = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [comparatorProjects, setComparatorProjects] = useState<Project[]>([]);
   const [showComparator, setShowComparator] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -153,6 +154,7 @@ const Dashboard = () => {
 
   const handleDragStart = (e: React.DragEvent, projectId: string) => {
     e.dataTransfer.setData("projectId", projectId);
+    setIsDragging(true);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -161,15 +163,21 @@ const Dashboard = () => {
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    setIsDragging(false);
     const projectId = e.dataTransfer.getData("projectId");
     const project = projects.find(p => p.id === projectId);
     
     if (project && !comparatorProjects.find(p => p.id === projectId)) {
       setComparatorProjects(prev => [...prev, project]);
-      if (!showComparator) {
-        setShowComparator(true);
-      }
+      toast({
+        title: "Project added to comparison",
+        description: `${project.title} has been added. Drag more projects or click Compare to view.`,
+      });
     }
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
   };
 
   const handleRemoveFromComparator = (projectId: string) => {
@@ -303,15 +311,66 @@ const Dashboard = () => {
               <div className="mb-12">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-semibold">Active Projects</h3>
-                  <div 
-                    className="px-4 py-2 rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 text-sm text-muted-foreground"
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
-                  >
-                    <GitCompare className="inline h-4 w-4 mr-2" />
-                    Drag cards here to compare
-                  </div>
                 </div>
+                
+                {/* Comparison Drop Zone - Always visible when dragging */}
+                <div 
+                  className={`mb-6 p-6 rounded-xl border-2 border-dashed transition-all duration-300 ${
+                    isDragging 
+                      ? "border-primary bg-primary/10 scale-105" 
+                      : comparatorProjects.length > 0
+                      ? "border-accent/50 bg-accent/5"
+                      : "border-muted-foreground/20 bg-muted/5"
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                        <GitCompare className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold">Route Comparator</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {comparatorProjects.length === 0 
+                            ? "Drag project cards here to compare routes" 
+                            : `${comparatorProjects.length} project${comparatorProjects.length > 1 ? 's' : ''} selected`}
+                        </p>
+                      </div>
+                    </div>
+                    {comparatorProjects.length > 0 && (
+                      <Button 
+                        onClick={() => setShowComparator(true)}
+                        className="gap-2"
+                      >
+                        <GitCompare className="h-4 w-4" />
+                        Compare Now
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {/* Show selected projects */}
+                  {comparatorProjects.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {comparatorProjects.map((project) => (
+                        <div 
+                          key={project.id}
+                          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-sm"
+                        >
+                          <span className="font-medium">{project.title}</span>
+                          <button
+                            onClick={() => handleRemoveFromComparator(project.id)}
+                            className="hover:text-destructive transition-colors"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {activeProjects.map((project) => (
                     <ProjectCard
@@ -320,7 +379,9 @@ const Dashboard = () => {
                       onOpen={(id) => navigate(`/project/${id}`)}
                       onArchive={handleArchiveProject}
                       isDraggable={true}
-                      onDragStart={handleDragStart}
+                      onDragStart={(e) => {
+                        handleDragStart(e, project.id);
+                      }}
                     />
                   ))}
                 </div>
